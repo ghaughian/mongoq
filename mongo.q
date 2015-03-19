@@ -6,6 +6,9 @@ lib:` sv hsym[`$getenv`QHOME],.z.o,`mongoq;
 initc:lib 2: (`mongo_init;3);
 insertc:lib 2: (`mongo_bulkinsert;2);
 selectc:lib 2: (`mongo_find;3);
+selectonec:lib 2: (`mongo_find_one;3);
+selectmodc:lib 2: (`mongo_find_and_modify;4);
+aggregatec:lib 2: (`mongo_aggregate;2);
 deletec:lib 2: (`mongo_delete;2);
 dropc:lib 2: (`mongo_drop;1);
 cleanupc:lib 2: (`mongo_cleanup;1);
@@ -56,6 +59,8 @@ searchid:{[t;s]
 
 init:{[host;port;db]initc[host;port;db]};
 initdb:{[db]init[`localhost^`$getenv`MONGOHOST;27017i^"I"$getenv`MONGOPORT;db]}
+
+//.z.exit{cleanupc[`]}
 
 \d .
 

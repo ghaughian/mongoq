@@ -172,3 +172,121 @@ K mongo_find(K qtable, K qquery, K qfields)
    return rtn;
 }
 
+K mongo_find_one(K qtable, K qquery, K qfields)
+{
+   mongoc_collection_t *collection;
+   mongoc_cursor_t *cursor;
+   const bson_t *item;
+   bson_error_t error;
+   bson_t *query;
+   bson_t *fields;
+   char *str;
+   K record;
+
+   if(qquery->t!=10){krr("type");return (K)0;}; 
+
+   /* get a handle to our collection */
+   collection = mongoc_client_get_collection (client, database, qtable->s);
+
+   query = bson_new_from_json(kC(qquery),qquery->n,&error);
+   fields = bson_new_from_json(kC(qfields),qfields->n,&error);
+
+   /* execute the query and extract the resulting single record */
+   cursor = mongoc_collection_find (collection, MONGOC_QUERY_NONE, 0, 0, 0, query, fields, NULL);
+   mongoc_cursor_next (cursor, &item);
+   str = bson_as_json (item, NULL);
+   record = kp(str);
+   bson_free (str);
+   if (mongoc_cursor_error (cursor, &error)) {
+      krr(error.message);
+      return(K)0;
+   }
+
+   /* release everything */
+   mongoc_cursor_destroy (cursor);
+   mongoc_collection_destroy (collection);
+   bson_destroy (query);
+   bson_destroy (fields);
+   
+   return record;
+}
+
+K mongo_find_and_modify(K qtable, K qquery, K qfields, K qupdate)
+{
+   mongoc_collection_t *collection;
+   bson_error_t error;
+   bson_t *query;
+   bson_t *fields;
+   bson_t *update;
+   bson_t *reply;
+   char *str;
+   K res;
+
+   if(qquery->t!=10){krr("type");return (K)0;}; 
+
+   /* get a handle to our collection */
+   collection = mongoc_client_get_collection (client, database, qtable->s);
+
+   query = bson_new_from_json(kC(qquery),qquery->n,&error);
+   fields = bson_new_from_json(kC(qfields),qfields->n,&error);
+   update = bson_new_from_json(kC(qupdate),qupdate->n,&error);
+
+   /* execute the query and extract the result */
+	if (mongoc_collection_find_and_modify(collection, query, NULL, update, fields, false, false, true, &reply, &error)) {
+		str = bson_as_json (&reply, NULL);
+		res = kp(str);
+		bson_free (str);	
+	} else {
+		krr(error.message);
+		return(K)0;
+	}
+
+   /* release everything */
+   mongoc_collection_destroy (collection);
+   bson_destroy (query);
+   bson_destroy (fields);
+   bson_destroy (update);
+   bson_destroy (&reply);
+   
+   return res;
+}
+
+K mongo_aggregate(K qtable, K qpipeline)
+{
+   mongoc_collection_t *collection;
+   mongoc_cursor_t *cursor;
+   const bson_t *item;
+   bson_error_t error;
+   bson_t *pipeline;
+   char *str;
+   K rtn,record;
+
+   if(qquery->t!=10){krr("type");return (K)0;}; 
+
+   /* get a handle to our collection */
+   collection = mongoc_client_get_collection (client, database, qtable->s);
+   
+   pipeline = bson_new_from_json(kC(qpipeline),qpipeline->n,&error);
+
+   /* execute the query and iterate the results */
+   cursor = mongoc_collection_aggregate(collection, MONGOC_QUERY_NONE, pipeline, NULL, NULL);
+   rtn = ktn(0, 0);
+   while (mongoc_cursor_next (cursor, &item)) {
+      str = bson_as_json (item, NULL);
+      record = kp(str);
+      jk(&rtn,record);
+      bson_free (str);
+   }
+   if (mongoc_cursor_error (cursor, &error)) {
+      krr(error.message);
+      return(K)0;
+   }
+
+   /* release everything */
+   mongoc_cursor_destroy (cursor);
+   mongoc_collection_destroy (collection);
+   bson_destroy (pipeline);
+   
+   return rtn;
+}
+
